@@ -7,8 +7,8 @@ package example_test
 
 import (
 	"fmt"
+	"github.com/jackson198608/algorithms/data-structures/consistent-hash/consistent"
 	"log"
-	"stathat.com/c/consistent"
 )
 
 func ExampleNew() {
