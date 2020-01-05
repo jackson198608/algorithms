@@ -1,4 +1,4 @@
-package consistent_hash
+package hash
 
 import (
 	"bufio"

@@ -18,7 +18,7 @@
 //
 // Read more about consistent hashing on wikipedia:  http://en.wikipedia.org/wiki/Consistent_hashing
 //
-package consistent_hash
+package hash
 
 import (
 	"errors"
@@ -46,10 +46,10 @@ var ErrEmptyCircle = errors.New("empty circle")
 // Consistent holds the information about the members of the consistent hash circle.
 type Consistent struct {
 	circle           map[uint32]string
-	members          map[string]bool
+	members          map[string]bool //记录有哪些服务器
 	sortedHashes     uints
-	NumberOfReplicas int
-	count            int64
+	NumberOfReplicas int   //虚拟节点个数
+	count            int64 //存入host的个数
 	scratch          [64]byte
 	UseFnv           bool
 	sync.RWMutex
@@ -61,7 +61,7 @@ type Consistent struct {
 func New() *Consistent {
 	c := new(Consistent)
 	c.NumberOfReplicas = 20
-	c.circle = make(map[uint32]string)
+	c.circle = make(map[uint32]string) //给map初始化空间不用给size
 	c.members = make(map[string]bool)
 	return c
 }
@@ -81,9 +81,12 @@ func (c *Consistent) Add(elt string) {
 
 // need c.Lock() before calling
 func (c *Consistent) add(elt string) {
+	//这里是虚拟节点的意思。一个节点，映射成多个虚拟节点，才存入circle
 	for i := 0; i < c.NumberOfReplicas; i++ {
 		c.circle[c.hashKey(c.eltKey(elt, i))] = elt
 	}
+
+	//记录了存储哪些host
 	c.members[elt] = true
 	c.updateSortedHashes()
 	c.count++
@@ -108,6 +111,7 @@ func (c *Consistent) remove(elt string) {
 
 // Set sets all the elements in the hash.  If there are existing elements not
 // present in elts, they will be removed.
+//相当于初始化方法，批量插入一堆host，同时清空现有host
 func (c *Consistent) Set(elts []string) {
 	c.Lock()
 	defer c.Unlock()
@@ -132,6 +136,7 @@ func (c *Consistent) Set(elts []string) {
 	}
 }
 
+//用来读取当前已经存储的node 返回字符串slice
 func (c *Consistent) Members() []string {
 	c.RLock()
 	defer c.RUnlock()
@@ -143,6 +148,8 @@ func (c *Consistent) Members() []string {
 }
 
 // Get returns an element close to where name hashes to in the circle.
+//name是要存入node的数据的关键字
+//这个函数用来找到name要放到哪个node中
 func (c *Consistent) Get(name string) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
